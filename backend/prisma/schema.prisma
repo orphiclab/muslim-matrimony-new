@@ -1,0 +1,228 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Enums ───────────────────────────────────────
+enum Role {
+  PARENT
+  ADMIN
+}
+
+enum Gender {
+  MALE
+  FEMALE
+}
+
+enum ProfileStatus {
+  DRAFT
+  PAYMENT_PENDING
+  ACTIVE
+  EXPIRED
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  INACTIVE
+  EXPIRED
+}
+
+enum PaymentStatus {
+  SUCCESS
+  PENDING
+  FAILED
+}
+
+enum PaymentMethod {
+  GATEWAY
+  BANK_TRANSFER
+}
+
+enum PaymentPurpose {
+  SUBSCRIPTION
+  BOOST
+}
+
+enum FieldVisibility {
+  PUBLIC
+  PRIVATE
+}
+
+// ─── Models ──────────────────────────────────────
+
+model User {
+  id            String         @id @default(uuid())
+  email         String         @unique
+  password      String
+  role          Role           @default(PARENT)
+  phone         String?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  childProfiles ChildProfile[]
+  payments      Payment[]
+  sentMessages  ChatMessage[]  @relation("SenderMessages")
+}
+
+model ChildProfile {
+  id                  String         @id @default(uuid())
+  memberId            String         @unique  // e.g. MN-001234
+  userId              String
+  user                User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Basic Info
+  name                String
+  gender              Gender
+  dateOfBirth         DateTime
+  height              Int?           // in cm
+  weight              Int?           // in kg
+  complexion          String?
+  appearance          String?
+  dressCode           String?
+  ethnicity           String?
+  civilStatus         String?
+  children            String?
+
+  // Location & Education
+  country             String?
+  city                String?
+  education           String?
+  occupation          String?
+  annualIncome        String?
+
+  // Family
+  familyStatus        String?
+  fatherOccupation    String?
+  motherOccupation    String?
+  siblings            Int?
+
+  // Preferences
+  minAgePreference    Int?
+  maxAgePreference    Int?
+  minHeightPreference Int?
+  countryPreference   String?
+
+  // Auto-generated (editable)
+  aboutUs             String?
+  expectations        String?
+
+  // Visibility
+  contactVisible      Boolean        @default(true)
+  showRealName        Boolean        @default(true)   // if false, nickname is shown publicly
+  nickname            String?                         // shown instead of real name when showRealName=false
+  boostExpiresAt      DateTime?                       // if set and in future, profile is boosted (shown at top)
+  viewCount           Int            @default(0)     // incremented each time profile detail page is viewed
+  status              ProfileStatus  @default(DRAFT)
+
+  // Field visibility controls
+  phoneVisibility     FieldVisibility @default(PRIVATE)
+  emailVisibility     FieldVisibility @default(PRIVATE)
+
+  // Phone / contact
+  phone               String?
+  contactEmail        String?
+
+  createdAt           DateTime       @default(now())
+  updatedAt           DateTime       @updatedAt
+
+  subscription        Subscription?
+  payments            Payment[]
+  sentMessages        ChatMessage[]  @relation("ProfileSentMessages")
+  receivedMessages    ChatMessage[]  @relation("ProfileReceivedMessages")
+}
+
+model Subscription {
+  id               String             @id @default(uuid())
+  childProfileId   String             @unique
+  childProfile     ChildProfile       @relation(fields: [childProfileId], references: [id], onDelete: Cascade)
+
+  status           SubscriptionStatus @default(INACTIVE)
+  startDate        DateTime?
+  endDate          DateTime?
+  planName         String             @default("standard")
+  planDurationDays Int                @default(30)
+
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+}
+
+model Payment {
+  id             String        @id @default(uuid())
+  userId         String
+  user           User          @relation(fields: [userId], references: [id])
+  childProfileId String
+  childProfile   ChildProfile  @relation(fields: [childProfileId], references: [id])
+
+  amount         Float
+  currency       String        @default("USD")
+  method         PaymentMethod @default(GATEWAY)
+  status         PaymentStatus @default(PENDING)
+  purpose        PaymentPurpose @default(SUBSCRIPTION)
+
+  // Package reference — lets us know duration at approval time
+  packageId             String?
+  packageDurationDays   Int?    @default(30)
+
+  // Bank transfer
+  bankRef        String?
+  bankSlipUrl    String?
+  adminNote      String?
+  approvedBy     String?
+  approvedAt     DateTime?
+
+  // Gateway
+  gatewayRef     String?
+  gatewayPayload Json?
+
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+}
+
+
+model ChatMessage {
+  id               String       @id @default(uuid())
+  senderId         String
+  sender           User         @relation("SenderMessages", fields: [senderId], references: [id])
+  senderProfileId  String
+  senderProfile    ChildProfile @relation("ProfileSentMessages", fields: [senderProfileId], references: [id])
+  receiverProfileId String
+  receiverProfile  ChildProfile @relation("ProfileReceivedMessages", fields: [receiverProfileId], references: [id])
+
+  content          String
+  readAt           DateTime?
+
+  createdAt        DateTime     @default(now())
+}
+
+model Package {
+  id               String   @id @default(uuid())
+  name             String
+  description      String?
+  price            Float
+  currency         String   @default("USD")
+  durationDays     Int      @default(30)
+  features         String[]
+  isActive         Boolean  @default(true)
+  sortOrder        Int      @default(0)
+  type             String   @default("SUBSCRIPTION")
+
+  // Per-package discount
+  discountPct      Float?   // e.g. 25.0 = 25% off; null = no package discount
+  originalPrice    Float?   // strikethrough price; if null, auto-computed
+
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+}
+
+/// Single-row settings for site-wide configuration
+model SiteSettings {
+  id                  String   @id @default("singleton")
+  siteDiscountPct     Float    @default(0)
+  siteDiscountLabel   String   @default("")
+  siteDiscountActive  Boolean  @default(false)
+  updatedAt           DateTime @updatedAt
+}

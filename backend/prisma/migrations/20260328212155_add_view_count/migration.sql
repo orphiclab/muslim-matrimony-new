@@ -1,0 +1,5 @@
+-- AlterTable
+ALTER TABLE "ChildProfile" ADD COLUMN     "nickname" TEXT,
+ADD COLUMN     "showRealName" BOOLEAN NOT NULL DEFAULT true,
+ADD COLUMN     "viewCount" INTEGER NOT NULL DEFAULT 0,
+ALTER COLUMN "boostExpiresAt" SET DATA TYPE TIMESTAMP(3);
