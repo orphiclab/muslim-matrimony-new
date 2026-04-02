@@ -1,6 +1,16 @@
+# docker-compose.yml  ─  DEVELOPMENT (hot-reload, mounts source code)
+# Works identically on macOS, Windows (WSL2) and Linux.
+#
+# Usage:
+#   docker compose up --build          # first run
+#   docker compose up                  # subsequent runs
+#   docker compose down -v             # stop & wipe volumes
+
 services:
+  # ─── PostgreSQL ────────────────────────────────────────────────────────────
   db:
     image: postgres:16-alpine
+    restart: unless-stopped
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
@@ -13,36 +23,47 @@ services:
       test: ["CMD-SHELL", "pg_isready -U postgres -d muslim_nikah"]
       interval: 5s
       timeout: 5s
-      retries: 5
+      retries: 10
 
+  # ─── Backend (NestJS dev server — hot reload via ts-node-dev) ──────────────
   backend:
     build:
       context: ./backend
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile.dev
+    restart: unless-stopped
+    volumes:
+      - ./backend:/app                      # live source mount
+      - backend_node_modules:/app/node_modules   # dedicate volume so host nm doesn't override
     ports:
       - "4000:4000"
+    env_file:
+      - ./backend/.env.docker
     environment:
       DATABASE_URL: postgresql://postgres:postgres@db:5432/muslim_nikah
-      PORT: "4000"
-      NODE_ENV: production
-      JWT_SECRET: ${JWT_SECRET:-change-me-use-a-secret-at-32-chars-min-in-prod!!}
-      JWT_EXPIRES_IN: 7d
-      FRONTEND_URL: http://localhost:3000
+      NODE_ENV: development
     depends_on:
       db:
         condition: service_healthy
 
+  # ─── Frontend (Next.js dev server — Fast Refresh) ──────────────────────────
   frontend:
     build:
       context: ./frontend
-      dockerfile: Dockerfile
-      args:
-        NEXT_PUBLIC_API_URL: http://localhost:4000/api
-        NEXT_PUBLIC_SOCKET_URL: http://localhost:4000
+      dockerfile: Dockerfile.dev
+    restart: unless-stopped
+    volumes:
+      - ./frontend:/app                     # live source mount
+      - frontend_node_modules:/app/node_modules
     ports:
       - "3000:3000"
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:4000/api
+      NEXT_PUBLIC_SOCKET_URL: http://localhost:4000
+      WATCHPACK_POLLING: "true"             # required for Windows file-watch
     depends_on:
       - backend
 
 volumes:
   postgres_data:
+  backend_node_modules:
+  frontend_node_modules:

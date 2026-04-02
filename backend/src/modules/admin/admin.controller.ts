@@ -76,6 +76,15 @@ export class AdminController {
     return this.service.getRecentMessages(limit ? parseInt(limit) : 100);
   }
 
+  // ─ Photos ───────────────────────────────────────────────
+  @Get('photos')
+  getPhotos(@Query('status') status?: string) { return this.service.getPhotos(status); }
+
+  @Put('photos/:id/approve')
+  approvePhoto(@Param('id') id: string) { return this.service.approvePhoto(id); }
+
+  @Put('photos/:id/reject')
+  rejectPhoto(@Param('id') id: string) { return this.service.rejectPhoto(id); }
 
   // ─ Boosts ───────────────────────────────────────────────
   @Get('boosts')

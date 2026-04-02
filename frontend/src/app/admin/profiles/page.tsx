@@ -1,12 +1,13 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { adminApi } from '@/services/api';
+import { adminApi, profileApi } from '@/services/api';
 
 type Profile = {
   id: string; name: string; gender: string; status: string;
   country?: string; city?: string; education?: string; occupation?: string;
   createdAt: string; user?: { email: string };
+  isVerified?: boolean;
 };
 
 const STATUS_OPTIONS = ['ALL', 'ACTIVE', 'DRAFT', 'PAYMENT_PENDING', 'EXPIRED'];
@@ -26,6 +27,15 @@ export default function AdminProfilesPage() {
       .catch(() => setProfiles([]))
       .finally(() => setLoading(false));
   }, []);
+
+  const toggleVerify = async (id: string, isVerified: boolean) => {
+    try {
+      await profileApi.verifyProfile(id, isVerified);
+      setProfiles(prev => prev.map(p => p.id === id ? { ...p, isVerified } : p));
+    } catch (err) {
+      alert("Verification update failed.");
+    }
+  };
 
   const filtered = profiles.filter(p => {
     const matchSearch = p.name.toLowerCase().includes(search.toLowerCase()) ||
@@ -132,10 +142,14 @@ export default function AdminProfilesPage() {
                       <span className={`text-xs px-2.5 py-1 rounded-full font-semibold ${statusColor(p.status)}`}>{statusLabel(p.status)}</span>
                     </td>
                     <td className="px-5 py-3.5 text-xs text-gray-400 whitespace-nowrap">{new Date(p.createdAt).toLocaleDateString()}</td>
-                    <td className="px-5 py-3.5">
-                      <button className="text-gray-400 hover:text-gray-700 transition px-2 py-1 rounded-lg hover:bg-gray-100">
-                        <span className="text-base tracking-widest font-bold">···</span>
-                      </button>
+                    <td className="px-5 py-3.5 flex items-center gap-2">
+                      {p.isVerified ? (
+                         <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-blue-50 text-blue-600 flex justify-center items-center cursor-pointer" onClick={() => toggleVerify(p.id, false)}>🛡️ Verified</span>
+                      ) : (
+                         <button onClick={() => toggleVerify(p.id, true)} className="text-[11px] px-2 py-1 rounded-md font-semibold bg-[#1C3B35] text-white hover:bg-[#15302a] shadow-sm">
+                           Verify
+                         </button>
+                      )}
                     </td>
                   </tr>
                 ))}

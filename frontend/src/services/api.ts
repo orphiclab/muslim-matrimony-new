@@ -56,6 +56,20 @@ export const profileApi = {
   getVisibleProfiles: (viewerProfileId: string) =>
     request<any>(`/profile/list/${viewerProfileId}`),
   delete: (id: string) => request<any>(`/profile/${id}`, { method: 'DELETE' }),
+
+  // Shortlists & Recommendations
+  toggleShortlist: (id: string, targetId: string) => request<any>(`/profile/${id}/shortlist/${targetId}`, { method: 'POST' }),
+  getShortlists: (id: string) => request<any>(`/profile/${id}/shortlists`),
+  getRecommendations: (id: string) => request<any>(`/profile/${id}/recommendations`),
+  
+  // Admin / Verification
+  verifyProfile: (id: string, isVerified: boolean) => request<any>(`/profile/${id}/verify`, { method: 'PATCH', body: JSON.stringify({ isVerified }) }),
+
+  // Photo Access Requests
+  requestPhotoAccess: (requesterId: string, targetId: string) => request<any>('/photo/access/request', { method: 'POST', body: JSON.stringify({ requesterId, targetId }) }),
+  getPendingPhotoRequests: () => request<any>('/photo/access/pending'),
+  approvePhotoRequest: (requestId: string, targetId: string) => request<any>(`/photo/access/${requestId}/approve`, { method: 'POST', body: JSON.stringify({ targetId }) }),
+  rejectPhotoRequest: (requestId: string, targetId: string) => request<any>(`/photo/access/${requestId}/reject`, { method: 'POST', body: JSON.stringify({ targetId }) }),
 };
 
 // ─── Subscription ──────────────────────────────────────────────────────────
@@ -92,6 +106,18 @@ export const visibilityApi = {
     request<any>('/visibility/toggle', { method: 'POST', body: JSON.stringify({ profileId, visible }) }),
 };
 
+// ─── Photo ──────────────────────────────────────────────────────────────────
+export const photoApi = {
+  requestAccess: (requesterId: string, targetProfileId: string) =>
+    request<any>('/photo/access/request', { method: 'POST', body: JSON.stringify({ requesterId, targetId: targetProfileId }) }),
+  getPendingRequests: () =>
+    request<any>('/photo/access/pending'),
+  approveRequest: (requestId: string, targetId: string) =>
+    request<any>(`/photo/access/${requestId}/approve`, { method: 'POST', body: JSON.stringify({ targetId }) }),
+  rejectRequest: (requestId: string, targetId: string) =>
+    request<any>(`/photo/access/${requestId}/reject`, { method: 'POST', body: JSON.stringify({ targetId }) }),
+};
+
 // ─── Chat ──────────────────────────────────────────────────────────────────
 export const chatApi = {
   send: (body: { senderProfileId: string; receiverProfileId: string; content: string }) =>
@@ -124,6 +150,11 @@ export const adminApi = {
 
   // Chat Monitor
   getMessages: (limit?: number) => request<any>(`/admin/messages${limit ? `?limit=${limit}` : ''}`),
+  
+  // Photos
+  photos: (status?: string) => request<any>(`/admin/photos${status ? `?status=${status}` : ''}`),
+  approvePhoto: (id: string) => request<any>(`/admin/photos/${id}/approve`, { method: 'PUT' }),
+  rejectPhoto: (id: string) => request<any>(`/admin/photos/${id}/reject`, { method: 'PUT' }),
 
   // Boosts
   getBoosts: () => request<any>('/admin/boosts'),
@@ -155,6 +186,63 @@ export const adminApi = {
 export const packagesApi = {
   getActive: (type?: string) => request<any>(`/packages${type ? `?type=${type}` : ''}`),
   getSettings: () => request<any>('/settings'),
+};
+
+// ─── Interest / Connection Requests ────────────────────────────────────────
+export const interestApi = {
+  /** Send an interest from senderProfileId → receiverProfileId */
+  send: (senderProfileId: string, receiverProfileId: string, message?: string) =>
+    request<any>('/interest/send', { method: 'POST', body: JSON.stringify({ senderProfileId, receiverProfileId, message }) }),
+
+  /** Accept or decline a received interest */
+  respond: (interestId: string, receiverProfileId: string, action: 'ACCEPTED' | 'DECLINED') =>
+    request<any>(`/interest/${interestId}/respond`, { method: 'PATCH', body: JSON.stringify({ receiverProfileId, action }) }),
+
+  /** Get interests received by a profile */
+  getReceived: (profileId: string) => request<any>(`/interest/${profileId}/received`),
+
+  /** Get interests sent by a profile */
+  getSent: (profileId: string) => request<any>(`/interest/${profileId}/sent`),
+
+  /** Check if interest was already sent */
+  check: (profileId: string, targetId: string) => request<any>(`/interest/${profileId}/check/${targetId}`),
+
+  /** Withdraw a sent pending interest */
+  withdraw: (senderProfileId: string, receiverProfileId: string) =>
+    request<any>(`/interest/${senderProfileId}/withdraw/${receiverProfileId}`, { method: 'DELETE' }),
+};
+
+// ─── Profile Views (Who Viewed My Profile) ──────────────────────────────────
+export const profileViewApi = {
+  record: (viewerProfileId: string, targetProfileId: string) =>
+    request<any>('/profile-views/record', { method: 'POST', body: JSON.stringify({ viewerProfileId, targetProfileId }) }),
+  getViewers: (profileId: string) => request<any>(`/profile-views/${profileId}/viewers`),
+  getVisited: (profileId: string) => request<any>(`/profile-views/${profileId}/visited`),
+};
+
+// ─── Notifications ────────────────────────────────────────────────────────────
+export const notificationApi = {
+  getAll: () => request<any>('/notifications'),
+  unreadCount: () => request<any>('/notifications/unread-count'),
+  markRead: (id: string) => request<any>(`/notifications/${id}/read`, { method: 'PATCH' }),
+  markAllRead: () => request<any>('/notifications/read-all', { method: 'PATCH' }),
+  delete: (id: string) => request<any>(`/notifications/${id}`, { method: 'DELETE' }),
+};
+
+// ─── Block / Report ───────────────────────────────────────────────────────────
+export const blockApi = {
+  block: (blockerProfileId: string, blockedProfileId: string) =>
+    request<any>('/block', { method: 'POST', body: JSON.stringify({ blockerProfileId, blockedProfileId }) }),
+  unblock: (blockerProfileId: string, blockedProfileId: string) =>
+    request<any>('/block', { method: 'DELETE', body: JSON.stringify({ blockerProfileId, blockedProfileId }) }),
+  check: (blockerProfileId: string, blockedProfileId: string) =>
+    request<any>(`/block/check/${blockerProfileId}/${blockedProfileId}`),
+  getList: (profileId: string) => request<any>(`/block/${profileId}/list`),
+  report: (reporterProfileId: string, reportedProfileId: string, reason: string, details?: string) =>
+    request<any>('/block/report', { method: 'POST', body: JSON.stringify({ reporterProfileId, reportedProfileId, reason, details }) }),
+  getReports: () => request<any>('/block/reports'),
+  updateReport: (id: string, status: string, adminNote?: string) =>
+    request<any>(`/block/reports/${id}`, { method: 'PATCH', body: JSON.stringify({ status, adminNote }) }),
 };
 
 

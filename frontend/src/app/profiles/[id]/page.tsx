@@ -4,6 +4,7 @@ import React, { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { publicProfilesApi } from '@/services/api';
+import PhotoGallery from '@/components/profiles/PhotoGallery';
 
 /* ── helpers ─────────────────────────────────────────── */
 const fmt = (val: any, suffix = '') =>
@@ -237,6 +238,7 @@ export default function ProfileDetailPage() {
 
           {/* Left column — quick summary card */}
           <div className="lg:col-span-1 space-y-5">
+            <PhotoGallery photos={profile.photos} />
             <SectionCard title="Quick Summary" icon="📋">
               <InfoRow label="Age" value={fmt(profile.age, ' years')} />
               <InfoRow label="Height" value={profile.height ? `${profile.height} cm` : '–'} />

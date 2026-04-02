@@ -42,6 +42,40 @@ export class ChildProfileController {
     return this.service.getMyProfiles(user.userId);
   }
 
+  @Post(':id/shortlist/:targetId')
+  toggleShortlist(
+    @CurrentUser() user: any,
+    @Param('id') id: string,
+    @Param('targetId') targetId: string,
+  ) {
+    return this.service.toggleShortlist(user.userId, id, targetId);
+  }
+
+  @Get(':id/shortlists')
+  getShortlists(
+    @CurrentUser() user: any,
+    @Param('id') id: string,
+  ) {
+    return this.service.getShortlists(user.userId, id);
+  }
+
+  @Get(':id/recommendations')
+  getRecommendations(
+    @CurrentUser() user: any,
+    @Param('id') id: string,
+  ) {
+    return this.service.getRecommendations(user.userId, id);
+  }
+
+  @Patch(':id/verify')
+  verifyProfile(
+    @CurrentUser() user: any,
+    @Param('id') id: string,
+    @Body('isVerified') isVerified: boolean,
+  ) {
+    return this.service.verifyProfile(user.userId, id, isVerified ?? true);
+  }
+
   @Get(':id')
   getOne(@CurrentUser() user: any, @Param('id') id: string) {
     return this.service.getOne(user.userId, id);

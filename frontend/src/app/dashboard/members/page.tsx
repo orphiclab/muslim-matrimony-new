@@ -1,9 +1,10 @@
 'use client';
 
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { profileApi } from '@/services/api';
 import { GenuineProfileCard } from '@/components/home/genuine/card';
+import { calcMatchScore, matchLabel } from '@/lib/matchScore';
 
 type Profile = {
   id: string; memberId: string; name: string; gender: string;
@@ -140,7 +141,16 @@ export default function BrowseMembersPage() {
   });
 
   const totalPages = Math.ceil(filtered.length / PER_PAGE);
-  const paginated = filtered.slice((page - 1) * PER_PAGE, page * PER_PAGE);
+
+  // Sort by match score descending when myProfile is available
+  const sorted = useMemo(() => {
+    if (!myProfile) return filtered;
+    return [...filtered].sort((a, b) =>
+      calcMatchScore(myProfile, b) - calcMatchScore(myProfile, a)
+    );
+  }, [filtered, myProfile]);
+
+  const paginated = sorted.slice((page - 1) * PER_PAGE, page * PER_PAGE);
 
   const set = (key: keyof Filters) => (val: string) => setFilters(f => ({ ...f, [key]: val }));
   const applyFilters = () => { setApplied({ ...filters }); setPage(1); setMobileFiltersOpen(false); };
@@ -319,11 +329,20 @@ export default function BrowseMembersPage() {
               <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5">
                 {paginated.map(p => (
                   <div key={p.id} className="block group">
-                    {/* Member ID badge */}
-                    <div className="flex items-center gap-1.5 mb-1.5 px-1">
+                    {/* Top row: member ID + match score */}
+                    <div className="flex items-center justify-between mb-1.5 px-1">
                       <span className="inline-flex items-center gap-1 bg-[#1C3B35]/8 text-[#1C3B35] text-[10px] font-mono font-bold px-2 py-0.5 rounded-full border border-[#1C3B35]/20 tracking-widest group-hover:bg-[#1C3B35]/15 transition">
                         🪪 {p.memberId}
                       </span>
+                      {myProfile && (() => {
+                        const score = calcMatchScore(myProfile, p);
+                        const { color, bg, label } = matchLabel(score);
+                        return (
+                          <span className={`inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full border ${bg} ${color}`}>
+                            ✦ {score}% {label}
+                          </span>
+                        );
+                      })()}
                     </div>
                     <GenuineProfileCard
                       {...toCardProps(p)}

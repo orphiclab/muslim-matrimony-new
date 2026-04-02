@@ -18,6 +18,11 @@ import { RuleEngineModule } from './modules/rule-engine/rule-engine.module';
 import { SubscriptionCron } from './cron/subscription.cron';
 import { AppEventListener } from './events/app-events.listener';
 import { TrafficModule } from './modules/traffic/traffic.module';
+import { CloudinaryModule } from './modules/cloudinary/cloudinary.module';
+import { PhotoModule } from './modules/photo/photo.module';
+import { InterestModule } from './modules/interest/interest.module';
+import { NotificationModule } from './modules/notification/notification.module';
+import { BlockModule } from './modules/block/block.module';
 import { envValidationSchema } from './config/env.validation';
 
 @Module({
@@ -45,6 +50,11 @@ import { envValidationSchema } from './config/env.validation';
     VisibilityModule,
     RuleEngineModule,
     TrafficModule,
+    CloudinaryModule,
+    PhotoModule,
+    InterestModule,
+    NotificationModule,
+    BlockModule,
   ],
   providers: [AppService, SubscriptionCron, AppEventListener],
 })

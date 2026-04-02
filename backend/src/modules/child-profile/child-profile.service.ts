@@ -110,6 +110,116 @@ export class ChildProfileService {
     return { success: true, message: 'Profile deleted' };
   }
 
+  // ─── Shortlist / Favorites ───────────────────────────────────────────────
+  async toggleShortlist(userId: string, ownerProfileId: string, targetProfileId: string) {
+    await this.findOwnedProfile(userId, ownerProfileId);
+    
+    const existing = await this.prisma.shortlist.findUnique({
+      where: {
+        ownerProfileId_targetProfileId: { ownerProfileId, targetProfileId }
+      }
+    });
+
+    if (existing) {
+      await this.prisma.shortlist.delete({ where: { id: existing.id } });
+      return { success: true, message: 'Removed from shortlist', shortlisted: false };
+    } else {
+      await this.prisma.shortlist.create({
+        data: { ownerProfileId, targetProfileId }
+      });
+      return { success: true, message: 'Added to shortlist', shortlisted: true };
+    }
+  }
+
+  async getShortlists(userId: string, profileId: string) {
+    await this.findOwnedProfile(userId, profileId);
+
+    const shortlists = await this.prisma.shortlist.findMany({
+      where: { ownerProfileId: profileId },
+      include: {
+        targetProfile: {
+          select: {
+             id: true, memberId: true, name: true, gender: true, city: true, occupation: true, viewCount: true,
+             photos: {
+               where: { isPrimary: true },
+               take: 1,
+               select: { url: true }
+             }
+          }
+        }
+      },
+      orderBy: { createdAt: 'desc' }
+    });
+
+    return { success: true, data: shortlists };
+  }
+
+  async getRecommendations(userId: string, profileId: string) {
+    const profile = await this.findOwnedProfile(userId, profileId);
+
+    // Set defaults if preferences are missing (to ensure we always return something)
+    const minAge = profile.minAgePreference ?? 18;
+    const maxAge = profile.maxAgePreference ?? 50;
+    
+    const today = new Date();
+    // A person who is maxAge years old was born today - maxAge years ago
+    const minDob = new Date(today.getFullYear() - maxAge, today.getMonth(), today.getDate());
+    // A person who is minAge years old was born today - minAge years ago
+    const maxDob = new Date(today.getFullYear() - minAge, today.getMonth(), today.getDate());
+
+    const oppositeGender = profile.gender === 'MALE' ? 'FEMALE' : 'MALE';
+
+    const whereClause: any = {
+      status: 'ACTIVE',
+      gender: oppositeGender,
+      dateOfBirth: {
+        gte: minDob,
+        lte: maxDob,
+      },
+    };
+
+    // If country preference exists, match it. Alternatively, match user's own country as fallback.
+    if (profile.countryPreference) {
+      whereClause.country = profile.countryPreference;
+    } else if (profile.country) {
+      whereClause.country = profile.country;
+    }
+
+    const recommendations = await this.prisma.childProfile.findMany({
+      where: whereClause,
+      take: 8,
+      orderBy: { viewCount: 'desc' }, // suggest popular profiles first
+      select: {
+        id: true, memberId: true, name: true, gender: true, city: true,
+        occupation: true, education: true, height: true, civilStatus: true,
+        dateOfBirth: true, createdAt: true, boostExpiresAt: true, isVerified: true,
+        photos: {
+          where: { isPrimary: true },
+          take: 1,
+          select: { url: true }
+        }
+      }
+    });
+
+    // Optionally map dateOfBirth to age for easy frontend consumption
+    const data = recommendations.map(r => ({
+      ...r,
+      age: Math.floor((Date.now() - new Date(r.dateOfBirth).getTime()) / (365.25 * 24 * 3600 * 1000))
+    }));
+
+    return { success: true, data };
+  }
+
+  async verifyProfile(adminId: string, profileId: string, isVerified: boolean) {
+    // For now, assume admin checks are done by controller guard or similar. 
+    // Just toggle the isVerified flag.
+    const updated = await this.prisma.childProfile.update({
+      where: { id: profileId },
+      data: { isVerified, verificationStatus: isVerified ? 'APPROVED' : 'REJECTED' }
+    });
+    return { success: true, message: isVerified ? 'Profile verified' : 'Profile verification rejected', isVerified: updated.isVerified };
+  }
+
   private async findOwnedProfile(userId: string, profileId: string) {
     const profile = await this.prisma.childProfile.findUnique({
       where: { id: profileId },

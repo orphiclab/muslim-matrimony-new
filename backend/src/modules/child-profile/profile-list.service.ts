@@ -25,7 +25,7 @@ export class ProfileListService {
     // Fetch ALL active profiles (pre-filter only by status — never filter by gender/age in DB)
     const allActiveProfiles = await this.prisma.childProfile.findMany({
       where: { status: 'ACTIVE' },
-      include: { subscription: true },
+      include: { subscription: true, photos: true },
     });
 
     // Pass every profile through RuleEngine — NEVER bypass
@@ -34,12 +34,27 @@ export class ProfileListService {
       allActiveProfiles as any[],
     );
 
+    const viewerRequests = await this.prisma.photoAccessRequest.findMany({
+      where: { requesterProfileId: viewerProfileId }
+    });
+
     // Sanitize each result — strip private fields, apply nickname privacy
     const sanitized = allowed.map(({ profile, contactVisible }) => {
       const safeProfile = this.ruleEngine.sanitizeProfile(profile as any, {
         viewer: viewerProfile as any,
         target: profile as any,
       });
+
+      // Photo access
+      const photoReq = viewerRequests.find(r => r.targetProfileId === profile.id);
+      const hasPhotoAccess = photoReq?.status === 'APPROVED';
+      const photoAccessStatus = photoReq?.status || null;
+
+      // Map photos to attach hasAccess
+      const mappedPhotos = ((profile as any).photos || []).map((p: any) => ({
+        ...p,
+        hasAccess: p.visibility === 'PUBLIC' || hasPhotoAccess
+      }));
 
       // Privacy: if member hides real name, show nickname instead
       const displayName =
@@ -50,7 +65,8 @@ export class ProfileListService {
       return {
         ...safeProfile,
         name: displayName,
-        _meta: { contactVisible, nameIsNickname: !profile.showRealName },
+        photos: mappedPhotos,
+        _meta: { contactVisible, nameIsNickname: !profile.showRealName, photoAccessStatus },
       };
     });
 

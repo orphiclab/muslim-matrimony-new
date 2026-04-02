@@ -36,6 +36,13 @@ export default function LoginPage() {
       }
       localStorage.setItem("mn_token", data.token);
       localStorage.setItem("mn_user", JSON.stringify(data.user));
+
+      // Also set cookies so Next.js middleware can enforce role-based routing
+      // server-side (middleware cannot read localStorage)
+      const cookieOpts = "path=/; SameSite=Lax; max-age=604800"; // 7 days
+      document.cookie = `mn_token=${data.token}; ${cookieOpts}`;
+      document.cookie = `mn_user=${encodeURIComponent(JSON.stringify(data.user))}; ${cookieOpts}`;
+
       if (data.user?.role === "ADMIN") {
         router.push("/admin");
       } else {

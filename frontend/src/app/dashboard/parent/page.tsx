@@ -3,6 +3,12 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { profileApi, paymentApi } from '@/services/api';
+import PhotoRequestsWidget from '@/components/dashboard/PhotoRequestsWidget';
+import ShortlistWidget from '@/components/dashboard/ShortlistWidget';
+import RecommendationsWidget from '@/components/dashboard/RecommendationsWidget';
+import InterestWidget from '@/components/dashboard/InterestWidget';
+import ProfileViewsWidget from '@/components/dashboard/ProfileViewsWidget';
+import ProfileCompletenessWidget from '@/components/dashboard/ProfileCompletenessWidget';
 
 /* ── Stat Card (mirrors admin) ─────────────────────────────────────── */
 function StatCard({
@@ -104,8 +110,15 @@ export default function ParentDashboard() {
         <h1 className="text-2xl font-bold text-gray-800">
           Welcome back{user?.email ? `, ${user.email.split('@')[0]}` : ''}! 👋
         </h1>
-        <p className="text-gray-400 text-sm mt-0.5">Here's what's happening with your account today</p>
+        <p className="text-gray-400 text-sm mt-0.5 mb-6">Here's what's happening with your account today</p>
       </div>
+
+      <ProfileCompletenessWidget />
+      <PhotoRequestsWidget />
+      {profiles.length > 0 && <InterestWidget ownerId={profiles[0].id} />}
+      {profiles.length > 0 && <ProfileViewsWidget ownerId={profiles[0].id} />}
+      {profiles.length > 0 && <RecommendationsWidget ownerId={profiles[0].id} />}
+      {profiles.length > 0 && <ShortlistWidget ownerId={profiles[0].id} />}
 
       {/* ── Stat Cards Row 1 ── */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">

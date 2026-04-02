@@ -52,6 +52,30 @@ enum FieldVisibility {
   PRIVATE
 }
 
+enum PhotoVisibility {
+  PUBLIC
+  BLURRED
+  PRIVATE
+}
+
+enum ModerationStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum RequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum InterestStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+}
+
 // ─── Models ──────────────────────────────────────
 
 model User {
@@ -66,6 +90,7 @@ model User {
   childProfiles ChildProfile[]
   payments      Payment[]
   sentMessages  ChatMessage[]  @relation("SenderMessages")
+  notifications Notification[]
 }
 
 model ChildProfile {
@@ -118,6 +143,11 @@ model ChildProfile {
   viewCount           Int            @default(0)     // incremented each time profile detail page is viewed
   status              ProfileStatus  @default(DRAFT)
 
+  // Verification Data
+  isVerified          Boolean        @default(false)
+  verificationStatus  ModerationStatus @default(PENDING)
+  idDocumentUrl       String?        // link to uploaded ID or passport
+
   // Field visibility controls
   phoneVisibility     FieldVisibility @default(PRIVATE)
   emailVisibility     FieldVisibility @default(PRIVATE)
@@ -131,8 +161,25 @@ model ChildProfile {
 
   subscription        Subscription?
   payments            Payment[]
+  photos              Photo[]
+  sentPhotoRequests   PhotoAccessRequest[]  @relation("RequesterProfile")
+  receivedPhotoRequests PhotoAccessRequest[]  @relation("TargetProfile")
   sentMessages        ChatMessage[]  @relation("ProfileSentMessages")
   receivedMessages    ChatMessage[]  @relation("ProfileReceivedMessages")
+  shortlistsOwned     Shortlist[]    @relation("ShortlistOwner")
+  shortlistsTargeted  Shortlist[]    @relation("ShortlistTarget")
+
+  sentInterests       InterestRequest[] @relation("InterestSender")
+  receivedInterests   InterestRequest[] @relation("InterestReceiver")
+
+  profileViewsMade    ProfileView[]  @relation("ProfileViewer")
+  profileViewsReceived ProfileView[] @relation("ProfileViewed")
+
+  blockedByMe         BlockedProfile[] @relation("BlockerProfile")
+  blockedMe           BlockedProfile[] @relation("BlockedProfile")
+
+  reportsMade         Report[]         @relation("ReporterProfile")
+  reportsReceived     Report[]         @relation("ReportedProfile")
 }
 
 model Subscription {
@@ -225,4 +272,133 @@ model SiteSettings {
   siteDiscountLabel   String   @default("")
   siteDiscountActive  Boolean  @default(false)
   updatedAt           DateTime @updatedAt
+}
+
+model Photo {
+  id               String           @id @default(uuid())
+  childProfileId   String
+  childProfile     ChildProfile     @relation(fields: [childProfileId], references: [id], onDelete: Cascade)
+  
+  url              String           // Cloud storage URL
+  key              String?          // Cloud storage key
+  isPrimary        Boolean          @default(false)
+  
+  visibility       PhotoVisibility  @default(BLURRED) // Default to blurred for privacy
+  status           ModerationStatus @default(PENDING) // Admin approval
+  
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+}
+
+model PhotoAccessRequest {
+  id                 String         @id @default(uuid())
+  
+  requesterProfileId String
+  requester          ChildProfile   @relation("RequesterProfile", fields: [requesterProfileId], references: [id], onDelete: Cascade)
+  
+  targetProfileId    String
+  target             ChildProfile   @relation("TargetProfile", fields: [targetProfileId], references: [id], onDelete: Cascade)
+  
+  status             RequestStatus  @default(PENDING)
+  
+  createdAt          DateTime       @default(now())
+  updatedAt          DateTime       @updatedAt
+
+  @@unique([requesterProfileId, targetProfileId]) // Prevent spamming
+}
+
+model Shortlist {
+  id                 String       @id @default(uuid())
+  
+  ownerProfileId     String
+  ownerProfile       ChildProfile @relation("ShortlistOwner", fields: [ownerProfileId], references: [id], onDelete: Cascade)
+  
+  targetProfileId    String
+  targetProfile      ChildProfile @relation("ShortlistTarget", fields: [targetProfileId], references: [id], onDelete: Cascade)
+  
+  createdAt          DateTime     @default(now())
+
+  @@unique([ownerProfileId, targetProfileId]) // Prevent duplicate shortlists
+}
+
+// ─── Interest / Connection Requests ─────────────────────────────────────
+model InterestRequest {
+  id                 String         @id @default(uuid())
+
+  senderProfileId    String
+  sender             ChildProfile   @relation("InterestSender", fields: [senderProfileId], references: [id], onDelete: Cascade)
+
+  receiverProfileId  String
+  receiver           ChildProfile   @relation("InterestReceiver", fields: [receiverProfileId], references: [id], onDelete: Cascade)
+
+  status             InterestStatus @default(PENDING)
+  message            String?        // optional note from sender
+
+  createdAt          DateTime       @default(now())
+  updatedAt          DateTime       @updatedAt
+
+  @@unique([senderProfileId, receiverProfileId])
+}
+
+// ─── Profile Views (Who Viewed My Profile) ───────────────────────────────
+model ProfileView {
+  id                 String       @id @default(uuid())
+
+  viewerProfileId    String
+  viewer             ChildProfile @relation("ProfileViewer", fields: [viewerProfileId], references: [id], onDelete: Cascade)
+
+  targetProfileId    String
+  target             ChildProfile @relation("ProfileViewed", fields: [targetProfileId], references: [id], onDelete: Cascade)
+
+  viewedAt           DateTime     @default(now())
+
+  @@unique([viewerProfileId, targetProfileId]) // deduplicate per pair
+}
+
+// ─── In-App Notifications ──────────────────────────────────────────────────
+model Notification {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  type      String   // e.g. INTEREST_RECEIVED, INTEREST_ACCEPTED, PHOTO_REQUEST, MESSAGE
+  title     String
+  body      String
+  isRead    Boolean  @default(false)
+  link      String?  // optional deep-link e.g. /dashboard/interests
+
+  createdAt DateTime @default(now())
+}
+
+// ─── Block / Report ────────────────────────────────────────────────────────
+model BlockedProfile {
+  id               String       @id @default(uuid())
+
+  blockerProfileId String
+  blocker          ChildProfile @relation("BlockerProfile", fields: [blockerProfileId], references: [id], onDelete: Cascade)
+
+  blockedProfileId String
+  blocked          ChildProfile @relation("BlockedProfile", fields: [blockedProfileId], references: [id], onDelete: Cascade)
+
+  createdAt        DateTime     @default(now())
+
+  @@unique([blockerProfileId, blockedProfileId])
+}
+
+model Report {
+  id                 String       @id @default(uuid())
+
+  reporterProfileId  String
+  reporter           ChildProfile @relation("ReporterProfile", fields: [reporterProfileId], references: [id], onDelete: Cascade)
+
+  reportedProfileId  String
+  reported           ChildProfile @relation("ReportedProfile", fields: [reportedProfileId], references: [id], onDelete: Cascade)
+
+  reason             String
+  details            String?
+  status             String       @default("PENDING") // PENDING | REVIEWED | DISMISSED
+  adminNote          String?
+
+  createdAt          DateTime     @default(now())
+  updatedAt          DateTime     @updatedAt
 }

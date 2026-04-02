@@ -19,6 +19,7 @@ export type ProfileCardProps = {
     isVip?: boolean;
     onChatClick?: (e: React.MouseEvent) => void;
     onViewClick?: (e: React.MouseEvent) => void;
+    onShortlistClick?: (e: React.MouseEvent) => void;
 };
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -136,6 +137,7 @@ const GenuineProfileCard = ({
     isVip,
     onChatClick,
     onViewClick,
+    onShortlistClick,
 }: ProfileCardProps) => {
     return (
         <div className="relative bg-white rounded-[20px] shadow-[0_4px_24px_rgba(0,0,0,0.10)] w-full flex-shrink-0 overflow-hidden pb-5">
@@ -148,6 +150,12 @@ const GenuineProfileCard = ({
             ) : (
                 /* Invisible spacer so non-VIP cards align exactly */
                 <div className="h-[21px] sm:h-[23px]" />
+            )}
+
+            {onShortlistClick && (
+                <button onClick={onShortlistClick} title="Save to Shortlist" className="absolute top-1.5 right-1.5 sm:top-7 sm:right-3 w-7 h-7 flex items-center justify-center bg-white border border-gray-200 rounded-full hover:bg-gray-50 transition-colors z-10 text-[10px] shadow-sm transform hover:scale-105 active:scale-95">
+                   ⭐
+                </button>
             )}
 
             <div className="px-4 pt-2">

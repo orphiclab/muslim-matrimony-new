@@ -172,6 +172,34 @@ export class AdminService {
     return { success: true, data: messages };
   }
 
+  // ─── Photos Moderation ───────────────────────────────────────────────────
+  async getPhotos(status?: string) {
+    const photos = await this.prisma.photo.findMany({
+      where: status ? { status: status as any } : undefined,
+      include: {
+        childProfile: { select: { id: true, name: true, memberId: true } }
+      },
+      orderBy: { createdAt: 'desc' }
+    });
+    return { success: true, data: photos };
+  }
+
+  async approvePhoto(id: string) {
+    const photo = await this.prisma.photo.update({
+      where: { id },
+      data: { status: 'APPROVED' }
+    });
+    return { success: true, data: photo };
+  }
+
+  async rejectPhoto(id: string) {
+    const photo = await this.prisma.photo.update({
+      where: { id },
+      data: { status: 'REJECTED' }
+    });
+    return { success: true, data: photo };
+  }
+
   // ─── Public single profile (increments viewCount) ─────────────────
   async getPublicProfile(id: string) {
     const profile: any = await this.prisma.childProfile.findFirst({
@@ -239,7 +267,7 @@ export class AdminService {
         occupation: true, ethnicity: true, civilStatus: true,
         createdAt: true, status: true,
         showRealName: true, nickname: true,
-        boostExpiresAt: true,
+        boostExpiresAt: true, isVerified: true,
       } as any,
       orderBy: { createdAt: 'desc' },
     });
@@ -252,7 +280,7 @@ export class AdminService {
         const displayName = !p.showRealName && p.nickname ? p.nickname : p.name;
         const isVip = p.boostExpiresAt && new Date(p.boostExpiresAt) > now;
         const { showRealName, nickname, boostExpiresAt, ...rest } = p;
-        return { ...rest, name: displayName, age, isVip };
+        return { ...rest, name: displayName, age, isVip, isVerified: p.isVerified };
       })
       .filter(p => {
         if (filters.minAge && p.age < filters.minAge) return false;

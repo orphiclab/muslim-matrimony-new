@@ -40,6 +40,16 @@ const navItems = [
     ),
   },
   {
+    href: '/admin/photos', label: 'Photo Moderation', exact: false,
+    icon: (
+      <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24">
+        <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+        <circle cx="8.5" cy="8.5" r="1.5" />
+        <polyline points="21 15 16 10 5 21" />
+      </svg>
+    ),
+  },
+  {
     href: '/admin/payments', label: 'Payment', exact: false,
     icon: (
       <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24">
@@ -61,6 +71,15 @@ const navItems = [
     icon: (
       <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24">
         <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+      </svg>
+    ),
+  },
+  {
+    href: '/admin/reports', label: 'Reports', exact: false,
+    icon: (
+      <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24">
+        <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z" />
+        <line x1="4" y1="22" x2="4" y2="15" />
       </svg>
     ),
   },
@@ -106,6 +125,9 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
   const logout = () => {
     localStorage.removeItem('mn_token');
     localStorage.removeItem('mn_user');
+    // Clear cookies so Next.js middleware revokes access immediately
+    document.cookie = 'mn_token=; path=/; max-age=0';
+    document.cookie = 'mn_user=; path=/; max-age=0';
     if (typeof window !== 'undefined') {
       window.dispatchEvent(new Event('mn_auth_change'));
     }

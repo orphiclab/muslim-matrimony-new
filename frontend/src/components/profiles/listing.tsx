@@ -11,6 +11,7 @@ type Profile = {
   city: string; country: string; height: string; education: string;
   occupation: string; ethnicity: string; civilStatus: string; createdAt: string;
   isVip?: boolean;
+  isVerified?: boolean;
 };
 
 type Filters = {
@@ -165,7 +166,7 @@ export default function ProfilesListing() {
     name: p.name ?? 'Profile',
     city: p.city ?? '',
     isPrivate: true,
-    isVerified: false,
+    isVerified: p.isVerified ?? false,
     age: p.age,
     height: p.height ? `${p.height} cm` : '–',
     maritalStatus: p.civilStatus ?? 'Single',
@@ -345,6 +346,16 @@ export default function ProfilesListing() {
                           isVip={p.isVip}
                           onChatClick={(e) => handleChatClick(e, p)}
                           onViewClick={() => router.push(`/profiles/${p.id}`)}
+                          onShortlistClick={(e) => {
+                             e.preventDefault();
+                             if (!localStorage.getItem('mn_token') || activeProfiles.length === 0) {
+                               alert("Please login and have an active profile to save matches.");
+                               return;
+                             }
+                             profileApi.toggleShortlist(activeProfiles[0].id, p.id)
+                               .then(res => alert(res.message))
+                               .catch(() => alert("Failed to save match."));
+                          }}
                       />
                     </div>
                   </div>
